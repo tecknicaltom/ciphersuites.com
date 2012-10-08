@@ -1,0 +1,6 @@
+Makefile
+*.o
+*.cache
+config.log
+config.status
+wserver
