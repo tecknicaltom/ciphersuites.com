@@ -10,8 +10,6 @@ DIST=	common.c \
 	server.h \
 	wserver.c \
 	wserver2.c \
-	read_write.c \
-	read_write.h \
 	Makefile.in \
 	configure.in \
 	configure \
