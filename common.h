@@ -18,7 +18,6 @@
 
 #define CA_LIST "root.pem"
 #define HOST	"localhost"
-#define RANDOM  "random.pem"
 #define PORT	4433
 #define BUFSIZZ 1024
 
