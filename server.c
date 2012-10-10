@@ -2,57 +2,54 @@
 #include "server.h"
 
 int tcp_listen()
-  {
-    int sock;
-    struct sockaddr_in sin;
-    int val=1;
-    
-    if((sock=socket(AF_INET,SOCK_STREAM,0))<0)
-      err_exit("Couldn't make socket");
-    
-    memset(&sin,0,sizeof(sin));
-    sin.sin_addr.s_addr=INADDR_ANY;
-    sin.sin_family=AF_INET;
-    sin.sin_port=htons(PORT);
-    setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,
-      &val,sizeof(val));
-    
-    if(bind(sock,(struct sockaddr *)&sin,
-      sizeof(sin))<0)
-      berr_exit("Couldn't bind");
-    listen(sock,5);  
+{
+	int sock;
+	struct sockaddr_in sin;
+	int val=1;
 
-    return(sock);
-  }
+	if((sock=socket(AF_INET,SOCK_STREAM,0))<0)
+		err_exit("Couldn't make socket");
 
-void load_dh_params(ctx,file)
-  SSL_CTX *ctx;
-  char *file;
-  {
-    DH *ret=0;
-    BIO *bio;
+	memset(&sin,0,sizeof(sin));
+	sin.sin_addr.s_addr=INADDR_ANY;
+	sin.sin_family=AF_INET;
+	sin.sin_port=htons(PORT);
+	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,
+		&val,sizeof(val));
 
-    if ((bio=BIO_new_file(file,"r")) == NULL)
-      berr_exit("Couldn't open DH file");
+	if(bind(sock,(struct sockaddr *)&sin,
+			sizeof(sin))<0)
+		berr_exit("Couldn't bind");
+	listen(sock,5);  
 
-    ret=PEM_read_bio_DHparams(bio,NULL,NULL,
-      NULL);
-    BIO_free(bio);
-    if(SSL_CTX_set_tmp_dh(ctx,ret)<0)
-      berr_exit("Couldn't set DH parameters");
-  }
+	return(sock);
+}
 
-void generate_eph_rsa_key(ctx)
-  SSL_CTX *ctx;
-  {
-    RSA *rsa;
+void load_dh_params(SSL_CTX *ctx, char *file)
+{
+	DH *ret=0;
+	BIO *bio;
 
-    rsa=RSA_generate_key(512,RSA_F4,NULL,NULL);
-    
-    if (!SSL_CTX_set_tmp_rsa(ctx,rsa))
-      berr_exit("Couldn't set RSA key");
+	if ((bio=BIO_new_file(file,"r")) == NULL)
+		berr_exit("Couldn't open DH file");
 
-    RSA_free(rsa);
-  }
-    
-  
+	ret=PEM_read_bio_DHparams(bio,NULL,NULL,
+		NULL);
+	BIO_free(bio);
+	if(SSL_CTX_set_tmp_dh(ctx,ret)<0)
+		berr_exit("Couldn't set DH parameters");
+}
+
+void generate_eph_rsa_key(SSL_CTX *ctx)
+{
+	RSA *rsa;
+
+	rsa=RSA_generate_key(512,RSA_F4,NULL,NULL);
+
+	if (!SSL_CTX_set_tmp_rsa(ctx,rsa))
+		berr_exit("Couldn't set RSA key");
+
+	RSA_free(rsa);
+}
+
+
