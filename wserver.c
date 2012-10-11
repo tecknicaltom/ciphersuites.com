@@ -84,6 +84,8 @@ int main(int argc, char **argv)
 	/* Build our SSL context*/
 	ctx=initialize_ctx(KEYFILE,PASSWORD);
 	load_dh_params(ctx,DHFILE);
+	SSL_CTX_set_cipher_list(ctx,"ALL");
+	SSL_CTX_set_options(ctx, SSL_OP_NO_TICKET | SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION /*|SSL_OP_NO_SSLv3 |SSL_OP_NO_TLSv1 |SSL_OP_NO_TLSv1_1 |SSL_OP_NO_TLSv1_2 */ );
 
 	sock=tcp_listen();
 
