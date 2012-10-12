@@ -72,7 +72,8 @@ static int http_serve(SSL *ssl, int s)
 	return(0);
 }
 
-int main(int argc, char **argv)
+
+void server(int protocol)
 {
 	int sock,s;
 	BIO *sbio;
@@ -85,7 +86,28 @@ int main(int argc, char **argv)
 	ctx=initialize_ctx(KEYFILE,PASSWORD);
 	load_dh_params(ctx,DHFILE);
 	SSL_CTX_set_cipher_list(ctx,"ALL");
-	SSL_CTX_set_options(ctx, SSL_OP_NO_TICKET | SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION /*|SSL_OP_NO_SSLv3 |SSL_OP_NO_TLSv1 |SSL_OP_NO_TLSv1_1 |SSL_OP_NO_TLSv1_2 */ );
+	long options = SSL_OP_NO_TICKET | SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
+	switch (protocol)
+	{
+	case SSL2_VERSION:
+		options |= SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
+		break;
+	case SSL3_VERSION:
+		options |= SSL_OP_NO_SSLv2 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
+		break;
+	case TLS1_VERSION:
+		options |= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
+		break;
+	case TLS1_1_VERSION:
+		options |= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_2;
+		break;
+	case TLS1_2_VERSION:
+		options |= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
+		break;
+	default:
+		err_exit("Unexpected protocol value");
+	}
+	SSL_CTX_set_options(ctx, options);
 
 	sock=tcp_listen();
 
@@ -109,5 +131,10 @@ int main(int argc, char **argv)
 		}
 	}
 	destroy_ctx(ctx);
+}
+
+int main(int argc, char **argv)
+{
+	server(TLS1_VERSION);
 	exit(0);
 }
