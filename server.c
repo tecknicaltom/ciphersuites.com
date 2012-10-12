@@ -1,7 +1,7 @@
 #include "common.h"
 #include "server.h"
 
-int tcp_listen()
+int tcp_listen(int port)
 {
 	int sock;
 	struct sockaddr_in sin;
@@ -13,7 +13,7 @@ int tcp_listen()
 	memset(&sin,0,sizeof(sin));
 	sin.sin_addr.s_addr=INADDR_ANY;
 	sin.sin_family=AF_INET;
-	sin.sin_port=htons(PORT);
+	sin.sin_port=htons(port);
 	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,
 		&val,sizeof(val));
 
