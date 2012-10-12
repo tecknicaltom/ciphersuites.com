@@ -71,6 +71,19 @@ static int http_serve(SSL *ssl, int s)
 
 	}
 
+	if((r=BIO_puts(io,"------\n"))<=0)
+		err_exit("Write error");
+	ciphers = SSL_get_ciphers(ssl);
+	n = sk_SSL_CIPHER_num(ciphers);
+	for (i = 0; i < n; i++)
+	{
+		c = sk_SSL_CIPHER_value(ciphers, i);
+		snprintf(buff, sizeof(buff), "server [%2d of %2d]: %s\n", i, n, SSL_CIPHER_get_name(c));
+		if((r=BIO_puts(io,buff))<=0)
+			err_exit("Write error");
+
+	}
+
 	if((r=BIO_flush(io))<0)
 		err_exit("Error flushing BIO");
 
