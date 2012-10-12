@@ -50,6 +50,10 @@ static int http_serve(SSL *ssl, int s)
 	if((r=BIO_puts(io,buff))<=0)
 		err_exit("Write error");
 
+	snprintf(buff, sizeof(buff), "Current cipher: %s\n", SSL_CIPHER_get_name(SSL_get_current_cipher(ssl)));
+	if((r=BIO_puts(io,buff))<=0)
+		err_exit("Write error");
+
 	STACK_OF(SSL_CIPHER) *ciphers = session->ciphers;
 	SSL_CIPHER *c;
 	int n = sk_SSL_CIPHER_num(ciphers);
@@ -167,6 +171,15 @@ void server(int protocol)
 
 int main(int argc, char **argv)
 {
-	server(TLS1_VERSION);
+	if (fork())
+		server(SSL2_VERSION);
+	if (fork())
+		server(SSL3_VERSION);
+	if (fork())
+		server(TLS1_VERSION);
+	if (fork())
+		server(TLS1_1_VERSION);
+
+	server(TLS1_2_VERSION);
 	exit(0);
 }
