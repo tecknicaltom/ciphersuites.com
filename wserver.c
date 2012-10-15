@@ -2,6 +2,22 @@
 #include "common.h"
 #include "server.h"
 
+static void http_serve_headers(BIO *io, int status, const char *status_msg, const char *content_type)
+{
+	char buf[1024];
+	snprintf(buf, sizeof(buf), "HTTP/1.0 %d %s\r\n", status, status_msg);
+	if(BIO_puts(io, buf) <= 0)
+		err_exit("Write error");
+	snprintf(buf, sizeof(buf), "Content-type: %s\r\n", content_type);
+	if(BIO_puts(io, buf) <= 0)
+		err_exit("Write error");
+//	if((r=BIO_puts(io,"Server: EKRServer\r\n"))<=0)
+//		err_exit("Write error");
+	// end of headers
+	if(BIO_puts(io, "\r\n") <= 0)
+		err_exit("Write error");
+}
+
 static int http_serve(SSL *ssl, int s)
 {
 	char buf[BUFSIZZ];
@@ -13,102 +29,126 @@ static int http_serve(SSL *ssl, int s)
 	BIO_set_ssl(ssl_bio,ssl,BIO_CLOSE);
 	BIO_push(io,ssl_bio);
 
-	while(1){
-		r=BIO_gets(io,buf,BUFSIZZ-1);
+	r=BIO_gets(io,buf,BUFSIZZ-1);
 
-		switch(SSL_get_error(ssl,r)){
-		case SSL_ERROR_NONE:
-			len=r;
+	switch(SSL_get_error(ssl,r)){
+	case SSL_ERROR_NONE:
+		len=r;
+		break;
+	default:
+		berr_exit("SSL read problem");
+	}
+
+	char *saveptr;
+	char resource[512] = {'\0'};
+	char *token = strtok_r(buf, " ", &saveptr);
+	if (token && strcasecmp(token, "GET") == 0)
+	{
+		token = strtok_r(NULL, " ", &saveptr);
+		if (token)
+		{
+			strncpy(resource, token, sizeof(resource));
+		}
+	}
+
+	if (resource[0])
+	{
+		while(1){
+			r=BIO_gets(io,buf,BUFSIZZ-1);
+
+			switch(SSL_get_error(ssl,r)){
+			case SSL_ERROR_NONE:
+				len=r;
+				break;
+			default:
+				berr_exit("SSL read problem");
+			}
+
+			/* Look for the blank line that signals
+			   the end of the HTTP headers */
+			if(!strcmp(buf,"\r\n") || !strcmp(buf,"\n"))
+				break;
+		}
+	}
+
+	if (strcasecmp(resource, "/list.txt") == 0)
+	{
+
+		http_serve_headers(io, 200, "OK", "text/plain");
+
+		char buff[1024];
+
+		SSL_SESSION* session = SSL_get_session(ssl);
+
+		long protocol = SSL_version(ssl);
+		const char *protocol_name = "??";
+		switch (protocol)
+		{
+		case SSL2_VERSION:
+			protocol_name = "SSLv2";
 			break;
-		default:
-			berr_exit("SSL read problem");
+		case SSL3_VERSION:
+			protocol_name = "SSLv3";
+			break;
+		case TLS1_VERSION:
+			protocol_name = "TLSv1";
+			break;
+		case TLS1_1_VERSION:
+			protocol_name = "TLSv1.1";
+			break;
+		case TLS1_2_VERSION:
+			protocol_name = "TLSv1.2";
+			break;
 		}
 
-		/* Look for the blank line that signals
-		   the end of the HTTP headers */
-		if(!strcmp(buf,"\r\n") ||
-			!strcmp(buf,"\n"))
-			break;
-	}
-
-	if((r=BIO_puts
-			(io,"HTTP/1.0 200 OK\r\n"))<=0)
-		err_exit("Write error");
-	if((r=BIO_puts(io,"Content-type: text/plain\r\n"))<=0)
-		err_exit("Write error");
-	if((r=BIO_puts(io,"Server: EKRServer\r\n"))<=0)
-		err_exit("Write error");
-	// end of headers
-	if((r=BIO_puts(io,"\r\n"))<=0)
-		err_exit("Write error");
-
-	char buff[1024];
-
-	SSL_SESSION* session = SSL_get_session(ssl);
-
-	long protocol = SSL_version(ssl);
-	const char *protocol_name = "??";
-	switch (protocol)
-	{
-	case SSL2_VERSION:
-		protocol_name = "SSLv2";
-		break;
-	case SSL3_VERSION:
-		protocol_name = "SSLv3";
-		break;
-	case TLS1_VERSION:
-		protocol_name = "TLSv1";
-		break;
-	case TLS1_1_VERSION:
-		protocol_name = "TLSv1.1";
-		break;
-	case TLS1_2_VERSION:
-		protocol_name = "TLSv1.2";
-		break;
-	}
-
-	snprintf(buff, sizeof(buff), "Version: 0x%lx %s\n", protocol, protocol_name);
-	if((r=BIO_puts(io,buff))<=0)
-		err_exit("Write error");
-
-	snprintf(buff, sizeof(buff), "Current cipher: %s\n", SSL_CIPHER_get_name(SSL_get_current_cipher(ssl)));
-	if((r=BIO_puts(io,buff))<=0)
-		err_exit("Write error");
-
-	STACK_OF(SSL_CIPHER) *ciphers = session->ciphers;
-	SSL_CIPHER *c;
-	int n = sk_SSL_CIPHER_num(ciphers);
-	snprintf(buff,sizeof(buff), "client sent %d ciphers\n", n);
-	if((r=BIO_puts(io,buff))<=0)
-		err_exit("Write error");
-
-	int i;
-	for (i = 0; i < n; i++)
-	{
-		c = sk_SSL_CIPHER_value(ciphers, i);
-		snprintf(buff, sizeof(buff), "client [%2d of %2d]: %s\n", i, n, SSL_CIPHER_get_name(c));
+		snprintf(buff, sizeof(buff), "Version: 0x%lx %s %s\n", protocol, protocol_name, resource);
 		if((r=BIO_puts(io,buff))<=0)
 			err_exit("Write error");
 
-	}
-
-	if((r=BIO_puts(io,"------\n"))<=0)
-		err_exit("Write error");
-	ciphers = SSL_get_ciphers(ssl);
-	n = sk_SSL_CIPHER_num(ciphers);
-	for (i = 0; i < n; i++)
-	{
-		c = sk_SSL_CIPHER_value(ciphers, i);
-		snprintf(buff, sizeof(buff), "server [%2d of %2d]: %s\n", i, n, SSL_CIPHER_get_name(c));
+		snprintf(buff, sizeof(buff), "Current cipher: %s\n", SSL_CIPHER_get_name(SSL_get_current_cipher(ssl)));
 		if((r=BIO_puts(io,buff))<=0)
 			err_exit("Write error");
 
+		STACK_OF(SSL_CIPHER) *ciphers = session->ciphers;
+		SSL_CIPHER *c;
+		int n = sk_SSL_CIPHER_num(ciphers);
+		snprintf(buff,sizeof(buff), "client sent %d ciphers\n", n);
+		if((r=BIO_puts(io,buff))<=0)
+			err_exit("Write error");
+
+		int i;
+		for (i = 0; i < n; i++)
+		{
+			c = sk_SSL_CIPHER_value(ciphers, i);
+			snprintf(buff, sizeof(buff), "client [%2d of %2d]: %s\n", i, n, SSL_CIPHER_get_name(c));
+			if((r=BIO_puts(io,buff))<=0)
+				err_exit("Write error");
+		}
+
+		/*
+		   if((r=BIO_puts(io,"------\n"))<=0)
+		   err_exit("Write error");
+		   ciphers = SSL_get_ciphers(ssl);
+		   n = sk_SSL_CIPHER_num(ciphers);
+		   for (i = 0; i < n; i++)
+		   {
+		   c = sk_SSL_CIPHER_value(ciphers, i);
+		   snprintf(buff, sizeof(buff), "server [%2d of %2d]: %s\n", i, n, SSL_CIPHER_get_name(c));
+		   if((r=BIO_puts(io,buff))<=0)
+		   err_exit("Write error");
+		   }
+		   */
+
+	}
+	else
+	{
+		http_serve_headers(io, 404, "Not Found", "text/plain");
+		if(BIO_puts(io, "Not found.") <= 0)
+			err_exit("Write error");
 	}
 
 	if((r=BIO_flush(io))<0)
 		err_exit("Error flushing BIO");
-
-
 
 	r=SSL_shutdown(ssl);
 	if(!r){
