@@ -46,7 +46,28 @@ static int http_serve(SSL *ssl, int s)
 
 	SSL_SESSION* session = SSL_get_session(ssl);
 
-	snprintf(buff, sizeof(buff), "Version: 0x%x\n", SSL_version(ssl));
+	long protocol = SSL_version(ssl);
+	const char *protocol_name = "??";
+	switch (protocol)
+	{
+	case SSL2_VERSION:
+		protocol_name = "SSLv2";
+		break;
+	case SSL3_VERSION:
+		protocol_name = "SSLv3";
+		break;
+	case TLS1_VERSION:
+		protocol_name = "TLSv1";
+		break;
+	case TLS1_1_VERSION:
+		protocol_name = "TLSv1.1";
+		break;
+	case TLS1_2_VERSION:
+		protocol_name = "TLSv1.2";
+		break;
+	}
+
+	snprintf(buff, sizeof(buff), "Version: 0x%lx %s\n", protocol, protocol_name);
 	if((r=BIO_puts(io,buff))<=0)
 		err_exit("Write error");
 
