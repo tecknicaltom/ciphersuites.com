@@ -15,6 +15,53 @@ static void http_serve_headers(BIO *io, int status, const char *status_msg, cons
 		err_exit("Write error");
 }
 
+static const char *get_protocol_name(long protocol)
+{
+	switch (protocol)
+	{
+	case SSL2_VERSION:
+		return "SSLv2";
+	case SSL3_VERSION:
+		return "SSLv3";
+	case TLS1_VERSION:
+		return "TLSv1";
+	case TLS1_1_VERSION:
+		return "TLSv1.1";
+	case TLS1_2_VERSION:
+		return "TLSv1.2";
+	default:
+		return "??";
+	}
+}
+
+static void print_ciphersuite_data(BIO *io, SSL *ssl, int js)
+{
+	SSL_SESSION* session = SSL_get_session(ssl);
+	long protocol = SSL_version(ssl);
+	const char *protocol_name = get_protocol_name(protocol);
+
+	const char *eol = js ? "\\n\\\n" : "\n";
+	if(BIO_printf(io, "Version: 0x%lx %s%s", protocol, protocol_name, eol) <= 0)
+		err_exit("Write error");
+
+	if(BIO_printf(io, "Current cipher: %s%s", SSL_CIPHER_get_name(SSL_get_current_cipher(ssl)), eol) <= 0)
+		err_exit("Write error");
+
+	STACK_OF(SSL_CIPHER) *ciphers = session->ciphers;
+	SSL_CIPHER *c;
+	int n = sk_SSL_CIPHER_num(ciphers);
+	if(BIO_printf(io, "client sent %d ciphers%s", n, eol) <= 0)
+		err_exit("Write error");
+
+	int i;
+	for (i = 0; i < n; i++)
+	{
+		c = sk_SSL_CIPHER_value(ciphers, i);
+		if(BIO_printf(io, "client [%2d of %2d]: %s%s", i, n, SSL_CIPHER_get_name(c), eol) <= 0)
+			err_exit("Write error");
+	}
+}
+
 static int http_serve(SSL *ssl, int s)
 {
 	char buf[BUFSIZZ];
@@ -68,52 +115,20 @@ static int http_serve(SSL *ssl, int s)
 		}
 	}
 
-	SSL_SESSION* session = SSL_get_session(ssl);
-	long protocol = SSL_version(ssl);
-	const char *protocol_name = "??";
-	switch (protocol)
-	{
-	case SSL2_VERSION:
-		protocol_name = "SSLv2";
-		break;
-	case SSL3_VERSION:
-		protocol_name = "SSLv3";
-		break;
-	case TLS1_VERSION:
-		protocol_name = "TLSv1";
-		break;
-	case TLS1_1_VERSION:
-		protocol_name = "TLSv1.1";
-		break;
-	case TLS1_2_VERSION:
-		protocol_name = "TLSv1.2";
-		break;
-	}
-
 	if (strcasecmp(resource, "/ciphersuites.txt") == 0)
 	{
 		http_serve_headers(io, 200, "OK", "text/plain");
-
-		if(BIO_printf(io, "Version: 0x%lx %s\n", protocol, protocol_name) <= 0)
+		print_ciphersuite_data(io, ssl, 0);
+	}
+	else if (strcasecmp(resource, "/ciphersuites.js") == 0)
+	{
+		long protocol = SSL_version(ssl);
+		http_serve_headers(io, 200, "OK", "text/javascript");
+		if(BIO_printf(io, "$(function() {\n  insert_text('%s', '", get_protocol_name(protocol)) <= 0)
 			err_exit("Write error");
-
-		if(BIO_printf(io, "Current cipher: %s\n", SSL_CIPHER_get_name(SSL_get_current_cipher(ssl))) <= 0)
+		print_ciphersuite_data(io, ssl, 1);
+		if(BIO_printf(io, "');\n});") <= 0)
 			err_exit("Write error");
-
-		STACK_OF(SSL_CIPHER) *ciphers = session->ciphers;
-		SSL_CIPHER *c;
-		int n = sk_SSL_CIPHER_num(ciphers);
-		if(BIO_printf(io, "client sent %d ciphers\n", n) <= 0)
-			err_exit("Write error");
-
-		int i;
-		for (i = 0; i < n; i++)
-		{
-			c = sk_SSL_CIPHER_value(ciphers, i);
-			if(BIO_printf(io, "client [%2d of %2d]: %s\n", i, n, SSL_CIPHER_get_name(c)) <= 0)
-				err_exit("Write error");
-		}
-
 	}
 	else
 	{
