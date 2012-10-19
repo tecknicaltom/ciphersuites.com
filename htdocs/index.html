@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>ciphersuites.com</title>
+		<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+		<script type="text/javascript" src="jquery-1.8.2.min.js"></script>
+		<script type="text/javascript" src="https://ciphersuites.com:4434/ciphersuites.js"></script>
+		<script type="text/javascript" src="https://ciphersuites.com:4435/ciphersuites.js"></script>
+		<script type="text/javascript" src="https://ciphersuites.com:4436/ciphersuites.js"></script>
+		<script type="text/javascript" src="https://ciphersuites.com:4437/ciphersuites.js"></script>
+		<script type="text/javascript" src="https://ciphersuites.com:4438/ciphersuites.js"></script>
+		<script type="text/javascript">
+		/* <![CDATA[ */
+			function insert_text(id, text) {
+				var root = $('#'+id);
+				root.html("");
+				var lines = text.split(/\n/);
+				for (var i = 0; i < lines.length; i++) {
+					root.append(jQuery(document.createElement('div')).text(lines[i]));
+				}
+			}
+		/* ]]> */
+		</script>
+		<style type="text/css">
+		/* <![CDATA[ */
+
+			body {
+				background-color: #333333;
+				color: white;
+			}
+
+			#content {
+				width: 50%;
+				margin-left: auto;
+				margin-right: auto;
+			}
+
+			h1 {
+				text-align: center;
+				font-family: monospace;
+				text-shadow: 5px 5px 5px black;
+			}
+
+			pre {
+				border: 1px dashed #7287E0;
+				border-radius: 1em;
+				padding: 1em;
+			}
+		/* ]]> */
+		</style>
+	</head>
+	<body>
+		<div id="content">
+			<h1>ciphersuites.com</h1>
+			<pre id="SSLv2">SSLv2 Not Supported.</pre>
+			<pre id="SSLv3">SSLv3 Not Supported.</pre>
+			<pre id="TLSv1">TLSv1 Not Supported.</pre>
+			<pre id="TLSv1.1">TLSv1.1 Not Supported.</pre>
+			<pre id="TLSv1.2">TLSv1.2 Not Supported.</pre>
+		</div>
+	</body>
+</html>
